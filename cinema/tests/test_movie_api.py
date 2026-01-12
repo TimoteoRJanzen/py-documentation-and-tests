@@ -67,6 +67,37 @@ def detail_url(movie_id):
     return reverse("cinema:movie-detail", args=[movie_id])
 
 
+class UnauthenticatedMovieApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_list_movies_unauthorized(self):
+        res = self.client.get(MOVIE_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_retrieve_movie_unauthorized(self):
+        movie = sample_movie()
+
+        url = detail_url(movie.id)
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_movie_unauthorized(self):
+        payload = {
+            "title": "Test movie",
+            "description": "Test description",
+            "duration": 120,
+            "genres": [],
+            "actors": [],
+        }
+
+        res = self.client.post(MOVIE_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class AuthenticatedMovieApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -276,3 +307,30 @@ class MovieImageUploadTests(TestCase):
         res = self.client.get(MOVIE_SESSION_URL)
 
         self.assertIn("movie_image", res.data[0].keys())
+
+
+class RegularUserMovieImageUploadTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            email="user@test.com",
+            password="password123",
+        )
+        self.client.force_authenticate(self.user)
+        self.movie = sample_movie()
+
+    def test_upload_image_forbidden_for_regular_user(self):
+        url = image_upload_url(self.movie.id)
+
+        with tempfile.NamedTemporaryFile(suffix=".jpg") as ntf:
+            img = Image.new("RGB", (10, 10))
+            img.save(ntf, format="JPEG")
+            ntf.seek(0)
+
+            res = self.client.post(
+                url,
+                {"image": ntf},
+                format="multipart",
+            )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
