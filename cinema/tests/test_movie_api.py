@@ -98,16 +98,6 @@ class AuthenticatedMovieApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
 
-
-class PrivateMovieApiTests(TestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.user = get_user_model().objects.create_user(
-            email="user@test.com",
-            password="password123",
-        )
-        self.client.force_authenticate(self.user)
-
     def test_create_movie_forbidden_for_regular_user(self):
         payload = {
             "title": "Regular user movie",
